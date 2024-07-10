@@ -1,112 +1,51 @@
-import json
-import os
+import pandas as pd
+import matplotlib.pyplot as plt
 import time
-from selenium import webdriver
-from bs4 import BeautifulSoup
 
-BASE_URL = "https://www.superherodb.com"
-MALE_VILLAINS_URL = f'{BASE_URL}/characters/male/villains/?set_gender=male&set_side=bad&page_nr='
-FEMALE_VILLAINS_URL = f'{BASE_URL}/characters/female/villains/?set_gender=female&set_side=bad&page_nr='
+# Load the CSV file
+file_path = './data/movies.csv'  # Update with your actual file path
+print("Loading CSV file...")
+start_time = time.time()
+movies_df = pd.read_csv(file_path)
+print(f"CSV file loaded successfully in {time.time() - start_time:.2f} seconds.")
 
+# Display the first few rows of the dataframe
+print("First few rows of the dataframe:")
+print(movies_df.head())
 
-def get_all_villain_links(driver, base_url, max_page):
-    all_links = []
+# Group by director and star, and count the occurrences
+print("Grouping by director and star...")
+start_time = time.time()
+director_star_count = movies_df.groupby(['director', 'star']).size().unstack(fill_value=0)
+print(f"Grouping completed in {time.time() - start_time:.2f} seconds. Here is a preview of the grouped data:")
+print(director_star_count.head())
 
-    for page_number in range(1, max_page + 1):
-        url = f"{base_url}{page_number}"
-        driver.get(url)
-        time.sleep(1)  # Reduced wait time to 1 second
-        driver.execute_script("window.stop();")  # Stop page loading
+# Sum the number of movies for each director and select the top 100
+top_directors = director_star_count.sum(axis=1).nlargest(100).index
+print(f"Top 100 directors selected based on the number of movies.")
 
-        soup = BeautifulSoup(driver.page_source, 'html.parser')
-        character_links = [BASE_URL + a['href'] for a in soup.select('div.column.col-12 ul.list-md li a')]
-        all_links.extend(character_links)
+# Filter the data to include only the top 100 directors
+director_star_count_top = director_star_count.loc[top_directors]
 
-    return all_links
+# Plotting the data
+print("Plotting the data...")
+start_time = time.time()
+fig, ax = plt.subplots(figsize=(20, 12))  # Increase the figure size
+director_star_count_top.plot(kind='bar', stacked=True, ax=ax)
+ax.set_title('Number of Movies Directed by Top 100 Directors with Specific Stars')
+ax.set_xlabel('Directors')
+ax.set_ylabel('Number of Movies')
+ax.legend(title='Stars', bbox_to_anchor=(1.05, 1), loc='upper left')
+plt.xticks(rotation=45, ha='right')
+plt.subplots_adjust(bottom=0.3)  # Adjust the bottom margin
+print(f"Plotting completed in {time.time() - start_time:.2f} seconds.")
 
+# Save the plot as an image file
+plot_path = 'director_star_count_top_100_plot.png'
+print(f"Saving the plot as an image file: {plot_path}")
+start_time = time.time()
+plt.savefig(plot_path)
+print(f"Plot saved successfully in {time.time() - start_time:.2f} seconds.")
+plt.show()
 
-def get_villain_details(driver, url):
-    driver.get(url)
-    time.sleep(1)  # Reduced wait time to 1 second
-    driver.execute_script("window.stop();")  # Stop page loading
-    try:
-        soup = BeautifulSoup(driver.page_source, 'html.parser')
-
-        details = {}
-
-        # Extracting the name from the <h1> tag
-        name_tag = soup.select_one('div.columns.profile-titles h1')
-        if name_tag:
-            details['name'] = name_tag.text.strip()
-
-        # No need to wait further if we have the name
-        if 'name' in details:
-            # Extracting Universe details from the <h3> tag with the class "fal fa-solar-system"
-            universe_tag = soup.select_one('div.columns.profile-titles h3')
-            if universe_tag:
-                details['universe'] = universe_tag.text.strip()
-
-            # Extracting Place of birth details
-            origin_table = soup.select_one('div.column.col-8.col-md-7.col-sm-12 table.profile-table')
-            if origin_table:
-                for row in origin_table.select('tr'):
-                    key = row.select_one('td').text.strip()
-                    if key == 'Place of birth':
-                        value = row.select('td')[1].text.strip()
-                        details[key] = value
-
-        return details
-    except Exception as e:
-        print(f"Error fetching details for {url}: {e}")
-        return {}
-
-
-def scrape_all_villains(driver, links):
-    villains = []
-    for link in links:
-        details = get_villain_details(driver, link)
-        if 'name' in details:
-            villain = {
-                'name': details['name'],
-                'place_of_birth': details.get('Place of birth', 'Unknown'),
-                'universe': details.get('universe', 'Unknown')
-            }
-            print(f"Scraped villain: {villain}")  # Debugging line
-            villains.append(villain)
-    return villains
-
-
-def main():
-    chrome_options = webdriver.ChromeOptions()
-    prefs = {
-        "profile.managed_default_content_settings.images": 2,
-        "profile.managed_default_content_settings.video": 2,
-        "profile.managed_default_content_settings.audio": 2,
-        "profile.managed_default_content_settings.popups": 2,
-        "profile.managed_default_content_settings.automatic_downloads": 2,
-        "profile.managed_default_content_settings.ads": 2
-    }
-    chrome_options.add_experimental_option("prefs", prefs)
-
-    driver = webdriver.Chrome(options=chrome_options)
-
-    male_villain_links = get_all_villain_links(driver, MALE_VILLAINS_URL, max_page=18)
-    female_villain_links = get_all_villain_links(driver, FEMALE_VILLAINS_URL, max_page=5)
-
-    all_villain_links = male_villain_links + female_villain_links
-
-    villains_data = scrape_all_villains(driver, all_villain_links)
-
-    output_directory = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'output')
-    os.makedirs(output_directory, exist_ok=True)
-    output_path = os.path.join(output_directory, 'villains_data.json')
-    with open(output_path, 'w') as f:
-        json.dump(villains_data, f, indent=4)
-
-    print(f"Data saved to '{output_path}'")  # Debugging line
-
-    driver.quit()
-
-
-if __name__ == '__main__':
-    main()
+print("Script execution completed.")

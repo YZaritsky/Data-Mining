@@ -8,7 +8,6 @@ BASE_URL = "https://www.superherodb.com"
 MALE_VILLAINS_URL = f'{BASE_URL}/characters/male/villains/?set_gender=male&set_side=bad&page_nr='
 FEMALE_VILLAINS_URL = f'{BASE_URL}/characters/female/villains/?set_gender=female&set_side=bad&page_nr='
 
-
 def get_all_villain_links(driver, base_url, max_page):
     all_links = []
 
@@ -24,10 +23,9 @@ def get_all_villain_links(driver, base_url, max_page):
 
     return all_links
 
-
 def get_villain_details(driver, url):
     driver.get(url)
-    time.sleep(1)  # Reduced wait time to 1 second
+    time.sleep(1)
     driver.execute_script("window.stop();")  # Stop page loading
     try:
         soup = BeautifulSoup(driver.page_source, 'html.parser')
@@ -48,24 +46,23 @@ def get_villain_details(driver, url):
             details['universe'] = universe_tag.text.strip()
 
         # Extracting Place of birth and Species details
-        origin_table = soup.select_one('div.column.col-8.col-md-7.col-sm-12 table.profile-table')
-        if origin_table:
-            for row in origin_table.select('tr'):
-                key_tag = row.select_one('td.table-label')
-                value_tag = row.select('td')[1]
+        origin_table = soup.select('div.column.col-8.col-md-7.col-sm-12 table.profile-table')
+        for table in origin_table:
+            for row in table.select('tr'):
+                key_tag = row.select_one('td')
+                value_tag = row.select('td')[1] if len(row.select('td')) > 1 else None
                 if key_tag and value_tag:
                     key = key_tag.text.strip()
-                    value = value_tag.text.strip()
                     if key == 'Place of birth':
-                        details[key] = value
+                        details[key] = value_tag.text.strip()
                     elif key == 'Species // Type':
-                        details['species'] = value
+                        species = ' // '.join([a.text for a in value_tag.select('a')])
+                        details['species'] = species
 
         return details
     except Exception as e:
         print(f"Error fetching details for {url}: {e}")
         return {}
-
 
 def scrape_all_villains(driver, links):
     villains = []
@@ -81,7 +78,6 @@ def scrape_all_villains(driver, links):
             print(f"Scraped villain: {villain}")  # Debugging line
             villains.append(villain)
     return villains
-
 
 def main():
     chrome_options = webdriver.ChromeOptions()
@@ -113,7 +109,6 @@ def main():
     print(f"Data saved to '{output_path}'")  # Debugging line
 
     driver.quit()
-
 
 if __name__ == '__main__':
     main()
