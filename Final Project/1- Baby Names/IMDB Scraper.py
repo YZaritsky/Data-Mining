@@ -11,7 +11,7 @@ headers = {
 }
 
 
-def get_tv_show_links(MAIN_URL):
+def get_tv_show_links():
     print("Fetching the main page...")
     response = requests.get(MAIN_URL, headers=headers)
     if response.status_code == 403:
@@ -65,7 +65,7 @@ def get_top_characters(tv_show_url):
 
 
 def main():
-    tv_show_links = get_tv_show_links(MAIN_URL)
+    tv_show_links = get_tv_show_links()
 
     tv_show_data = []
     for idx, tv_show_url in enumerate(tv_show_links):
