@@ -4,14 +4,16 @@ import json
 import os
 import time
 
+## GLOBAL VARS ##
+MAIN_URL = "https://www.imdb.com/search/title/?title_type=tv_series&moviemeter=1,100"
 headers = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
 }
 
 
-def get_tv_show_links(main_url):
+def get_tv_show_links(MAIN_URL):
     print("Fetching the main page...")
-    response = requests.get(main_url, headers=headers)
+    response = requests.get(MAIN_URL, headers=headers)
     if response.status_code == 403:
         print("Access forbidden, please check your headers or proxy settings.")
         return []
@@ -63,8 +65,7 @@ def get_top_characters(tv_show_url):
 
 
 def main():
-    main_url = "https://www.imdb.com/search/title/?title_type=tv_series&moviemeter=1,100"
-    tv_show_links = get_tv_show_links(main_url)
+    tv_show_links = get_tv_show_links(MAIN_URL)
 
     tv_show_data = []
     for idx, tv_show_url in enumerate(tv_show_links):
