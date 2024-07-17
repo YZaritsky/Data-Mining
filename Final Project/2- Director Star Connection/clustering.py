@@ -1,68 +1,63 @@
+import os
 import pandas as pd
 import networkx as nx
+from sklearn.cluster import SpectralClustering
 import matplotlib.pyplot as plt
-from matplotlib.colors import ListedColormap
-from sklearn.cluster import KMeans
+import numpy as np
 
-SIZE = 100
+os.makedirs('./output', exist_ok=True)
 
-# Load the dataset
-file_path = './data/movies.csv'
-movies_df = pd.read_csv(file_path)
+data = pd.read_csv('./data/imdb-movies-dataset.csv')
 
-# Filter necessary columns
-df = movies_df[['director', 'star']]
+director_counts = data['Director'].value_counts()
+directors = director_counts[director_counts >= 20].index
 
-# Create a graph
-G = nx.Graph()
+B = nx.Graph()
+B.add_nodes_from(directors, bipartite=0)
+actors = set(actor for cast in data['Cast'].dropna() for actor in cast.split(', '))
+B.add_nodes_from(actors, bipartite=1)
 
-# Add edges to the graph with a weight representing the number of collaborations
-edge_weights = df.groupby(['director', 'star']).size().reset_index(name='weight')
+for director, cast in zip(data['Director'], data['Cast']):
+    if pd.notna(cast) and director in directors:
+        B.add_edges_from((director, actor) for actor in cast.split(', ') if actor != director)
 
-# Select the top SIZE collaborations
-top_edges = edge_weights.nlargest(SIZE, 'weight')
+top_directors = sorted(directors, key=lambda x: B.degree(x), reverse=True)
+top_actors = set(actor for director in top_directors for actor in B.neighbors(director))
 
-# Add edges to the graph
-for index, row in top_edges.iterrows():
-    G.add_edge(row['director'], row['star'], weight=row['weight'])
+subgraph = B.subgraph(top_directors + list(top_actors))
+print(f"Subgraph has {subgraph.number_of_nodes()} nodes and {subgraph.number_of_edges()} edges")
 
-# Apply KMeans clustering to the directors
-directors = df['director'].unique()
-pivot_df = df.pivot_table(index='director', columns='star', aggfunc='size', fill_value=0)
-kmeans = KMeans(n_clusters=5, random_state=42)
-clusters = kmeans.fit_predict(pivot_df)
-director_clusters = dict(zip(directors, clusters))
+if subgraph.number_of_nodes() and subgraph.number_of_edges():
+    adj_matrix = nx.adjacency_matrix(subgraph)
+    labels = SpectralClustering(n_clusters=5, affinity='precomputed', random_state=42).fit_predict(adj_matrix.toarray())
 
-# Define pastel colors
-pastel_blue = '#AEC6CF'
-pastel_red = '#FFB6C1'
+    pos = nx.spring_layout(subgraph, seed=42, k=0.1)
+    plt.figure(figsize=(14, 12))
 
-# Color nodes based on whether they are directors or stars
-node_colors = []
-node_sizes = []
-for node in G.nodes():
-    if node in director_clusters:
-        node_colors.append(pastel_blue)  # Pastel color for directors
-        node_sizes.append(1000)  # Larger size for directors
-    else:
-        node_colors.append(pastel_red)  # Pastel color for stars
-        node_sizes.append(300)  # Smaller size for stars
+    director_positions = {node: pos[node] for node in top_directors}
+    actor_positions = {node: pos[node] for node in top_actors}
 
-# Get edge widths based on the weight
-edge_widths = [G[u][v]['weight'] for u, v in G.edges()]
+    unique_labels = np.unique(labels)
+    colors = plt.cm.tab10(unique_labels)
 
-# Draw the graph
-plt.figure(figsize=(15, 15))
-pos = nx.spring_layout(G, k=0.15, iterations=20)
-nx.draw(G, pos, with_labels=True, node_color=node_colors, node_size=node_sizes, font_size=10, font_color='black', edge_color=edge_widths, edge_cmap=plt.cm.Blues, width=2)
+    for label, color in zip(unique_labels, colors):
+        director_cluster = [node for node, lab in zip(subgraph.nodes(), labels) if
+                            lab == label and node in top_directors]
+        actor_cluster = [node for node, lab in zip(subgraph.nodes(), labels) if lab == label and node in top_actors]
 
-# Create a legend for the directors and stars
-handles = [
-    plt.Line2D([0], [0], marker='o', color='w', markerfacecolor=pastel_blue, markersize=10, label='Directors'),
-    plt.Line2D([0], [0], marker='o', color='w', markerfacecolor=pastel_red, markersize=10, label='Stars')
-]
-plt.legend(handles=handles, title='Node Types')
+        if director_cluster:
+            plt.scatter(*zip(*[pos[node] for node in director_cluster]), s=500, color=color, edgecolors='k')
+        if actor_cluster:
+            plt.scatter(*zip(*[pos[node] for node in actor_cluster]), s=50, color=color, alpha=0.6)
 
-# Set the title dynamically
-plt.title(f'Network of Top {SIZE} Director-Star Collaborations with Clusters')
-plt.show()
+    nx.draw_networkx_edges(subgraph, pos, alpha=0.5)
+
+    for director in top_directors:
+        plt.text(pos[director][0], pos[director][1] + 0.03, director, fontsize=10, ha='center', va='bottom',
+                 fontweight='bold', bbox=dict(facecolor='white', alpha=0.5, edgecolor='none'))
+
+    plt.title('Top 10 Directors-Actor Connections with Clustering')
+    plt.xlabel('')
+    plt.ylabel('')
+    plt.savefig('./output/directors_actors_clustering.png')
+    plt.show()
