@@ -1,5 +1,5 @@
 Question A:
-The text analyzed is Romeo & Juliet by William Shakespeare.
+Romeo & Juliet by William Shakespeare.
 
 Question F:
 A notable mistake in the POS tagging on this assignment is with the word “art.”
