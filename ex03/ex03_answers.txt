@@ -1,0 +1,17 @@
+Question A:
+The text analyzed is Romeo & Juliet by William Shakespeare.
+
+Question F:
+A notable mistake in the POS tagging on this assignment is with the word “art.”
+In the phrase “thou art,” which appears multiple times, “art” is incorrectly tagged as a noun (NN).
+However, in this context, “art” is an archaic form of the verb “are” (meaning “you are”).
+Therefore, it should be tagged as a verb (VB) rather than a noun.
+
+Question H:
+The word cloud prominently features “Romeo” and “Juliet,” which is exactly what you’d expect for this play.
+Other frequently appearing words like “Nurse,” “God,” and “Good” also make sense given their significance in the dialogue.
+Overall, the tag cloud aligns well with the characters and themes of the play.
+
+
+Problem 3 Meta:
+The assignment took us around 18-20 hours to complete.

@@ -1,0 +1,23 @@
+Top 10 homographs (most POS):
+s: ['NNP', 'NNS', 'PRP', 'VBZ', 'JJR', 'MD', 'JJ', 'CC', 'PDT', 'FW', 'VB', 'VBD', 'RB', 'NN', 'VBP']
+doth: ['NNP', 'IN', 'VBZ', 'JJ', 'CC', 'FW', 'DT', 'VBD', 'VB', 'RB', 'NN', 'VBP']
+o: ['NNP', 'IN', 'PRP', 'MD', 'JJ', 'CC', 'VBD', 'VB', 'RB', 'NN', 'VBP', 'UH']
+thou: ['NNP', 'IN', 'EX', 'NNS', 'VBZ', 'JJ', 'VB', 'VBD', 'RB', 'NN', 'VBP']
+thee: ['NNP', 'VBN', 'NNS', 'VBZ', 'JJ', 'VB', 'RB', 'NN', 'RP', 'VBP']
+love: ['NNP', 'IN', 'VBN', 'JJ', 'VB', 'VBD', 'RB', 'NN', 'VBP']
+thy: ['IN', 'NNP', 'VBZ', 'JJ', 'VB', 'VBD', 'NN', 'RP', 'VBP']
+d: ['NNS', 'VBZ', 'JJ', 'VB', 'VBD', 'RB', 'NN', 'VBP']
+ere: ['IN', 'NNP', 'EX', 'JJ', 'VB', 'RB', 'NN', 'WRB']
+heaven: ['NNP', 'VBN', 'NNS', 'VBZ', 'JJ', 'VB', 'RB', 'NN']
+
+Bottom 10 homographs (least POS):
+cruel: ['NN', 'JJ']
+pitiful: ['NNP', 'JJ']
+re: ['NN', 'VBP']
+fa: ['NN', 'VB']
+prates: ['VBZ', 'NNPS']
+defy: ['VBP', 'RB']
+import: ['NN', 'VB']
+sell: ['VBP', 'VB']
+strew: ['VB', 'VBD']
+joint: ['NN', 'JJ']
