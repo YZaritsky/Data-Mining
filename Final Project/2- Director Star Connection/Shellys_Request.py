@@ -23,7 +23,7 @@ actors_different_directors = director_actor_count.groupby('Cast')['Director'].nu
 actors_different_directors = actors_different_directors[actors_different_directors >= 3].index.tolist()
 
 # Step 5: Load the text file containing the IMDB list and rankings
-file_path_txt = './data/data.txt'
+file_path_txt = 'data/IMDB_top_100_actors.txt'
 with open(file_path_txt, 'r', encoding='utf-8') as file:
     imdb_actor_list = file.readlines()
 
@@ -51,13 +51,17 @@ actors_different_directors_df = pd.DataFrame({'Actor': list(actors_in_common_blu
 actors_same_director_df.to_csv('./output/shellys_request/actors_same_director_common.csv', index=False)
 actors_different_directors_df.to_csv('./output/shellys_request/actors_different_directors_common.csv', index=False)
 
-# Step 8: Prepare the data for the plot using the rankings from the "data.txt" file
+# Step 8: Prepare the data for the plot using the rankings from the "IMDB_top_100_actors.txt" file
 sorted_actors = sorted(actor_rankings.items(), key=lambda x: x[1])
 x_labels, y_values = zip(*sorted_actors)
 
 # Filter to include only actors that are in the common lists (Red or Blue)
 x_labels = [actor for actor in x_labels if actor in actors_in_common_red.union(actors_in_common_blue)]
 y_values = [actor_rankings[actor] for actor in x_labels]
+
+# Reverse the order of x_labels and y_values to make names ordered from right to left
+x_labels = x_labels[::-1]
+y_values = y_values[::-1]
 
 # Determine the colors based on the list membership
 colors = ['red' if actor in actors_in_common_red else 'blue' for actor in x_labels]
@@ -81,8 +85,6 @@ plt.legend(handles=[
     plt.Line2D([0], [0], marker='o', color='w', markerfacecolor='red', markersize=10, label='Same director 3+ times'),
     plt.Line2D([0], [0], marker='o', color='w', markerfacecolor='blue', markersize=10, label='3+ different directors')
 ])
-
-# Save the plot as an image
 
 
 # Show the plot
