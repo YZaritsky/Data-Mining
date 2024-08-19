@@ -86,7 +86,6 @@ plt.legend(handles=[
     plt.Line2D([0], [0], marker='o', color='w', markerfacecolor='blue', markersize=10, label='3+ different directors')
 ])
 
-
 # Show the plot
 plt.tight_layout()
 plt.savefig('./output/shellys_request/actor_rankings_plot.png', dpi=300, bbox_inches='tight')
