@@ -54,7 +54,7 @@ world = gpd.read_file('./needed_files/ne_110m_admin_0_countries.shp')
 world = world[world['NAME'] != 'Antarctica']
 
 # Create output directory if it doesn't exist
-output_dir = "./output_visualizations"
+output_dir = "./output_10year_heatmaps"
 os.makedirs(output_dir, exist_ok=True)
 
 # Part 1: Heatmap Visualization with Decade Intervals
