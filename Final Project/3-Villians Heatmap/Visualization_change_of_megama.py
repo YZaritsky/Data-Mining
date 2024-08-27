@@ -1,100 +1,70 @@
 import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
 import matplotlib.pyplot as plt
-import re
 
-# Load the CSV file
-file_path = './output/top_10_box_office_movies_1977_2023_with_villains_origins.csv'
-df = pd.read_csv(file_path)
+# Step 1: Load the CSV data from the file
+df = pd.read_csv('output/top_10_box_office_movies_1977_2023_with_villains_origins.csv')
 
-# Define regions and their corresponding countries or locations
+# Step 2: Define regions and remove USA villains
 regions = {
-    'Islamic Countries': ['iran', 'iraq', 'afghanistan', 'syria', 'pakistan', 'saudi', 'egypt', 'turkey', 'libya',
-                          'islamic', 'arab'],
-    'USA': ['united states', 'usa', 'u.s.', 'america', 'gotham', 'new york', 'california', 'texas', 'illinois',
-            'los angeles', 'boston', 'amityville', 'haddonfield', 'metropolis', 'smallville', 'derry', 'maine'],
-    'Germany': ['germany', 'german', 'deutsch'],
-    'Russian/Ukrainian': ['russia', 'russian', 'ussr', 'soviet', 'ukraine', 'ukrainian', 'stalingrad', 'moscow', 'kyiv',
-                          'kiev']
+    'Islamic Countries': ['Iran', 'Iraq', 'Afghanistan', 'Syria', 'Pakistan', 'Saudi Arabia', 'Egypt', 'Turkey', 'Libya', 'Islamic'],
+    'Germany': ['Germany', 'West Germany', 'East Germany'],
+    'Russian/Ukrainian': ['Russia', 'USSR', 'Soviet Union', 'Ukraine', 'Stalingrad', 'Moscow', 'Kyiv']
 }
 
+# Filter out villains from the USA
+df['Region'] = df['Origin'].apply(lambda x: next((region for region, places in regions.items() if x in places), 'Other'))
+df = df[df['Region'] != 'USA']
 
-# Assign each origin to a region
-def assign_region(origin):
-    origin_lower = str(origin).lower()
-    for region, terms in regions.items():
-        if any(re.search(r'\b' + re.escape(term) + r'\b', origin_lower) for term in terms):
-            return region
-    return 'Other'
-
-
-df['Region'] = df['Origin'].apply(assign_region)
-
-# Filter out rows where region is 'Other'
-df = df[df['Region'] != 'Other']
-
-# Count villains per region over the years
-villain_counts = df.groupby(['Year', 'Region']).size().unstack(fill_value=0)
-
-# Part 1 & 2: Line Plot of Villain Trends by Region
-plt.figure(figsize=(14, 8))
-for region in regions.keys():
-    if region in villain_counts.columns:
-        plt.plot(villain_counts.index, villain_counts[region], label=region)
-
-plt.xlabel('Year')
-plt.ylabel('Number of Villains')
-plt.title('Trend of Villains by Region Over Time')
-plt.legend()
-plt.grid(True)
-output_trend_path = "./output_10year_heatmaps/villains_trend_by_region.png"
-plt.savefig(output_trend_path, bbox_inches='tight')
-plt.close()
-
-print(f"Trend visualization saved to {output_trend_path}")
-
-# Part 3: Geopolitical Event Data (manually defined)
+# Step 3: Mark whether the country was in conflict with the USA
 geopolitical_events = {
-    '1979': 'Iran Hostage Crisis',
-    '1989': 'Fall of Berlin Wall',
-    '2001': '9/11 Attacks',
-    '2003': 'Iraq War',
-    '2014': 'Ukraine Crisis',
-    '2022': 'Russia-Ukraine Conflict'
+    '1979-1981': {'event': 'Iran Hostage Crisis', 'region': 'Islamic Countries'},
+    '1989-1990': {'event': 'Fall of Berlin Wall', 'region': 'Germany'},
+    '2001-2001': {'event': '9/11', 'region': 'Islamic Countries'},
+    '2003-2011': {'event': 'Iraq War', 'region': 'Islamic Countries'},
+    '2014-2016': {'event': 'Ukraine Crisis', 'region': 'Russian/Ukrainian'},
+    '2022-present': {'event': 'Russia-Ukraine Conflict', 'region': 'Russian/Ukrainian'}
 }
 
-# Add a column for geopolitical events
-df['Geopolitical_Event'] = df['Year'].apply(lambda x: geopolitical_events.get(str(x), None))
+def get_conflict_status(year, region):
+    for period, details in geopolitical_events.items():
+        start_year, end_year = period.split('-')
+        if int(start_year) <= year <= (int(end_year) if end_year != 'present' else 9999):
+            if details['region'] == region:
+                return 1
+    return 0
 
-# Filter data for countries with conflicts with the USA
-conflict_regions = list(regions.keys())  # Use all defined regions
-df_conflict = df[df['Region'].isin(conflict_regions)]
+df['Conflict'] = df.apply(lambda row: get_conflict_status(row['Year'], row['Region']), axis=1)
 
-# Count villains in conflict regions by year
-conflict_villain_counts = df_conflict.groupby(['Year', 'Region']).size().unstack(fill_value=0)
+# Step 4: Prepare the data for training
+X = df[['Year', 'Conflict']]
+y = df['Conflict']
 
-# Part 4: Visualize Impact of Geopolitical Events
-plt.figure(figsize=(14, 8))
-for region in conflict_regions:
-    if region in conflict_villain_counts.columns:
-        plt.plot(conflict_villain_counts.index, conflict_villain_counts[region], label=region)
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
 
-# Mark geopolitical events on the plot
-for event_year, event_name in geopolitical_events.items():
-    plt.axvline(x=int(event_year), color='gray', linestyle='--')
+# Step 5: Train the Random Forest model
+model = RandomForestClassifier(random_state=42, n_estimators=100)
+model.fit(X_train, y_train)
 
-    # Adjust the y-position of the text to avoid overlapping with data points
-    plt.text(int(event_year), plt.ylim()[1] * 0.85, event_name, rotation=90, verticalalignment='center', fontsize=10)
+# Step 6: Predict probabilities for each 5-year range from 1977 to 2030
+years = list(range(1977, 2031, 5))
+probabilities = []
 
-# Add some extra space around the plot to avoid overlapping
-plt.subplots_adjust(right=0.9, top=0.9)
+for year in years:
+    year_data = pd.DataFrame({
+        'Year': [year],
+        'Conflict': [1]  # Assume conflict
+    })
+    prob = model.predict_proba(year_data)[0][1]  # Probability of being in conflict
+    probabilities.append(prob)
 
+# Step 7: Visualize the probabilities
+plt.figure(figsize=(12, 6))
+plt.plot(years, [p * 100 for p in probabilities], marker='o')
 plt.xlabel('Year')
-plt.ylabel('Number of Villains')
-plt.title('Impact of Geopolitical Events on Villain Origins from Conflict Regions')
-plt.legend()
+plt.ylabel('Probability (%)')
+plt.title('Probability that a Villain is from a Country in Conflict with the USA')
 plt.grid(True)
-output_conflict_path = "./output_10year_heatmaps/villains_impact_geopolitical_events.png"
-plt.savefig(output_conflict_path, bbox_inches='tight')
-plt.close()
-
-print(f"Geopolitical event impact visualization saved to {output_conflict_path}")
+plt.show()
