@@ -1,26 +1,33 @@
 import pandas as pd
 import matplotlib.pyplot as plt
+import re
 
 # Load the CSV file
 file_path = './output/top_10_box_office_movies_1977_2023_with_villains_origins.csv'
 df = pd.read_csv(file_path)
 
-# Define regions and their corresponding countries or locations based on the provided categories
+# Define regions and their corresponding countries or locations
 regions = {
-    'Islamic Countries': ['Iran', 'Iraq', 'Afghanistan', 'Syria', 'Pakistan', 'Saudi Arabia', 'Egypt', 'Turkey', 'Libya', 'Islamic'],
-    'USA': ['United States', 'USA', 'Gotham City', 'New York', 'California', 'Texas', 'Illinois', 'Los Angeles', 'Long Island', 'Boston', 'Amityville', 'Haddonfield', 'Metropolis', 'Amity Island', 'Smallville', 'Derry, Maine', 'Stark Industries', 'Canada', 'Toronto', 'Montreal'],
-    'Germany': ['Germany', 'West Germany', 'East Germany'],
-    'Russian/Ukrainian': ['Russia', 'USSR', 'Soviet Union', 'Ukraine', 'Stalingrad', 'Moscow', 'Kyiv']
+    'Islamic Countries': ['iran', 'iraq', 'afghanistan', 'syria', 'pakistan', 'saudi', 'egypt', 'turkey', 'libya',
+                          'islamic', 'arab'],
+    'USA': ['united states', 'usa', 'u.s.', 'america', 'gotham', 'new york', 'california', 'texas', 'illinois',
+            'los angeles', 'boston', 'amityville', 'haddonfield', 'metropolis', 'smallville', 'derry', 'maine'],
+    'Germany': ['germany', 'german', 'deutsch'],
+    'Russian/Ukrainian': ['russia', 'russian', 'ussr', 'soviet', 'ukraine', 'ukrainian', 'stalingrad', 'moscow', 'kyiv',
+                          'kiev']
 }
+
 
 # Assign each origin to a region
 def assign_region(origin):
-    for region, places in regions.items():
-        if any(place in origin for place in places):
+    origin_lower = str(origin).lower()
+    for region, terms in regions.items():
+        if any(re.search(r'\b' + re.escape(term) + r'\b', origin_lower) for term in terms):
             return region
     return 'Other'
 
-df['Region'] = df['Origin'].apply(lambda x: assign_region(str(x)))
+
+df['Region'] = df['Origin'].apply(assign_region)
 
 # Filter out rows where region is 'Other'
 df = df[df['Region'] != 'Other']
@@ -30,7 +37,7 @@ villain_counts = df.groupby(['Year', 'Region']).size().unstack(fill_value=0)
 
 # Part 1 & 2: Line Plot of Villain Trends by Region
 plt.figure(figsize=(14, 8))
-for region in ['USA', 'Germany', 'Islamic Countries', 'Russian/Ukrainian']:
+for region in regions.keys():
     if region in villain_counts.columns:
         plt.plot(villain_counts.index, villain_counts[region], label=region)
 
@@ -59,7 +66,7 @@ geopolitical_events = {
 df['Geopolitical_Event'] = df['Year'].apply(lambda x: geopolitical_events.get(str(x), None))
 
 # Filter data for countries with conflicts with the USA
-conflict_regions = ['Russian/Ukrainian', 'Islamic Countries', 'USA', 'Germany']
+conflict_regions = list(regions.keys())  # Use all defined regions
 df_conflict = df[df['Region'].isin(conflict_regions)]
 
 # Count villains in conflict regions by year
