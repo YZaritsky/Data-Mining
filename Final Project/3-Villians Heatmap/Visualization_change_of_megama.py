@@ -7,10 +7,11 @@ import matplotlib.pyplot as plt
 # Step 1: Load the CSV data from the file
 df = pd.read_csv('output/top_10_box_office_movies_1977_2023_with_villains_origins.csv')
 
-# Step 2: Define regions and remove USA villains
+# Step 2: Define regions and exclude USA villains
 regions = {
-    'Islamic Countries': ['Iran', 'Iraq', 'Afghanistan', 'Syria', 'Pakistan', 'Saudi Arabia', 'Egypt', 'Turkey', 'Libya', 'Islamic'],
-    'Germany': ['Germany', 'West Germany', 'East Germany'],
+    'Islamic Countries': ['Iran', 'Iraq', 'Afghanistan', 'Syria', 'Pakistan', 'Saudi Arabia', 'Egypt', 'Turkey',
+                          'Libya', 'Islamic'],
+    'Communist Asia': ['China', 'North Korea'],
     'Russian/Ukrainian': ['Russia', 'USSR', 'Soviet Union', 'Ukraine', 'Stalingrad', 'Moscow', 'Kyiv']
 }
 
@@ -19,17 +20,20 @@ df['Region'] = df['Origin'].apply(lambda x: next((region for region, places in r
 df = df[df['Region'] != 'USA']
 
 # Step 3: Mark whether the country was in conflict with the USA
-geopolitical_events = {
+geopolitical_conflicts = {
     '1979-1981': {'event': 'Iran Hostage Crisis', 'region': 'Islamic Countries'},
-    '1989-1990': {'event': 'Fall of Berlin Wall', 'region': 'Germany'},
+    '1991-1993': {'event': 'Gulf War', 'region': 'Islamic Countries'},
     '2001-2001': {'event': '9/11', 'region': 'Islamic Countries'},
-    '2003-2011': {'event': 'Iraq War', 'region': 'Islamic Countries'},
+    '2002-2015': {'event': 'Iraq and Afghanistan Wars', 'region': 'Islamic Countries'},
+    '2006-2018': {'event': 'North Korea Nuclear Threat', 'region': 'Communist Asia'},
+    '2020-2024': {'event': 'China Marked as Greatest Threat to the USA', 'region': 'Communist Asia'},
+    '1980-1985': {'event': 'Cold War Tension', 'region': 'Russian/Ukrainian'},
     '2014-2016': {'event': 'Ukraine Crisis', 'region': 'Russian/Ukrainian'},
-    '2022-present': {'event': 'Russia-Ukraine Conflict', 'region': 'Russian/Ukrainian'}
+    '2022-2024': {'event': 'Russia-Ukraine Conflict', 'region': 'Russian/Ukrainian'}
 }
 
 def get_conflict_status(year, region):
-    for period, details in geopolitical_events.items():
+    for period, details in geopolitical_conflicts.items():
         start_year, end_year = period.split('-')
         if int(start_year) <= year <= (int(end_year) if end_year != 'present' else 9999):
             if details['region'] == region:
