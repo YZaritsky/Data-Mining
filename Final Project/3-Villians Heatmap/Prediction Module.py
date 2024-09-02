@@ -11,15 +11,15 @@ df = pd.read_csv('output/top_10_box_office_movies_1977_2023_with_villains_origin
 regions = {
     'Islamic Countries': ['Iran', 'Iraq', 'Afghanistan', 'Syria', 'Pakistan', 'Saudi Arabia', 'Egypt', 'Turkey',
                           'Libya', 'Islamic'],
-    'Germany': ['Germany', 'West Germany', 'East Germany'],
+    'Communist Asia': ['China', 'North Korea'],
     'Russian/Ukrainian': ['Russia', 'USSR', 'Soviet Union', 'Ukraine', 'Stalingrad', 'Moscow', 'Kyiv']
 }
 
 # Define geopolitical conflicts data
 geopolitical_conflicts = {
-    'Islamic Countries': [(1979, 1981), (2001, 2001), (2003, 2011)],  # Iran Hostage Crisis, 9/11, Iraq War
-    'Germany': [(1989, 1990)],  # Fall of Berlin Wall
-    'Russian/Ukrainian': [(2014, 2016), (2022, 2024)]  # Ukraine Crisis, Russia-Ukraine Conflict
+    'Islamic Countries': [(1979, 1981), (1991, 1993), (2001, 2001), (2002, 2015)],  # Iran Hostage Crisis, gulf war, 9/11, Iraq and Afganistan Wars
+    'Communist Asia': [(2006, 2018), (2020, 2024)],  # North Korea Nuclear threat, China marked as greatest threat to the USA
+    'Russian/Ukrainian': [(1980, 1985), (2014, 2016), (2022, 2024)]  # Cold war tention, Ukraine Crisis, Russia-Ukraine Conflict
 }
 
 
