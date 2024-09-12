@@ -1,105 +1,135 @@
 import pandas as pd
+import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
+from sklearn.metrics import confusion_matrix, accuracy_score, precision_score, recall_score, f1_score, roc_auc_score, roc_curve
+from imblearn.over_sampling import SMOTE
 import matplotlib.pyplot as plt
 
-# Step 1: Load the CSV data from the file
+# Step 1: Load the CSV data
 df = pd.read_csv('output/top_10_box_office_movies_1977_2023_with_villains_origins.csv')
 
-# Step 2: Define regions and exclude USA villains
+# Define the list of UN member states (excluding the USA)
+un_countries = ['Afghanistan', 'Albania', 'Algeria', 'Andorra', 'Angola', 'Antigua and Barbuda', 'Argentina', 
+                'Armenia', 'Australia', 'Austria', 'Azerbaijan', 'Bahamas', 'Bahrain', 'Bangladesh', 'Barbados', 
+                'Belarus', 'Belgium', 'Belize', 'Benin', 'Bhutan', 'Bolivia', 'Bosnia and Herzegovina', 'Botswana', 
+                'Brazil', 'Brunei', 'Bulgaria', 'Burkina Faso', 'Burundi', 'Cabo Verde', 'Cambodia', 'Cameroon', 
+                'Canada', 'Central African Republic', 'Chad', 'Chile', 'China', 'Colombia', 'Comoros', 'Congo', 
+                'Costa Rica', 'Croatia', 'Cuba', 'Cyprus', 'Czech Republic', 'Denmark', 'Djibouti', 'Dominica', 
+                'Dominican Republic', 'Ecuador', 'Egypt', 'El Salvador', 'Equatorial Guinea', 'Eritrea', 'Estonia', 
+                'Eswatini', 'Ethiopia', 'Fiji', 'Finland', 'France', 'Gabon', 'Gambia', 'Georgia', 'Germany', 
+                'Ghana', 'Greece', 'Grenada', 'Guatemala', 'Guinea', 'Guinea-Bissau', 'Guyana', 'Haiti', 'Honduras', 
+                'Hungary', 'Iceland', 'India', 'Indonesia', 'Iran', 'Iraq', 'Ireland', 'Israel', 'Italy', 'Jamaica', 
+                'Japan', 'Jordan', 'Kazakhstan', 'Kenya', 'Kiribati', 'Kuwait', 'Kyrgyzstan', 'Laos', 'Latvia', 
+                'Lebanon', 'Lesotho', 'Liberia', 'Libya', 'Liechtenstein', 'Lithuania', 'Luxembourg', 'Madagascar', 
+                'Malawi', 'Malaysia', 'Maldives', 'Mali', 'Malta', 'Marshall Islands', 'Mauritania', 'Mauritius', 
+                'Mexico', 'Micronesia', 'Moldova', 'Monaco', 'Mongolia', 'Montenegro', 'Morocco', 'Mozambique', 
+                'Myanmar', 'Namibia', 'Nauru', 'Nepal', 'Netherlands', 'New Zealand', 'Nicaragua', 'Niger', 'Nigeria', 
+                'North Korea', 'North Macedonia', 'Norway', 'Oman', 'Pakistan', 'Palau', 'Panama', 'Papua New Guinea', 
+                'Paraguay', 'Peru', 'Philippines', 'Poland', 'Portugal', 'Qatar', 'Romania', 'Russia', 'Rwanda', 
+                'Saint Kitts and Nevis', 'Saint Lucia', 'Saint Vincent and the Grenadines', 'Samoa', 'San Marino', 
+                'Sao Tome and Principe', 'Saudi Arabia', 'Senegal', 'Serbia', 'Seychelles', 'Sierra Leone', 
+                'Singapore', 'Slovakia', 'Slovenia', 'Solomon Islands', 'Somalia', 'South Africa', 'South Korea', 
+                'South Sudan', 'Spain', 'Sri Lanka', 'Sudan', 'Suriname', 'Sweden', 'Switzerland', 'Syria', 
+                'Taiwan', 'Tajikistan', 'Tanzania', 'Thailand', 'Timor-Leste', 'Togo', 'Tonga', 'Trinidad and Tobago', 
+                'Tunisia', 'Turkey', 'Turkmenistan', 'Tuvalu', 'Uganda', 'Ukraine', 'United Arab Emirates', 
+                'United Kingdom', 'Uruguay', 'Uzbekistan', 'Vanuatu', 'Venezuela', 'Vietnam', 'Yemen', 'Zambia', 
+                'Zimbabwe']
+
+# Step 2: Standardize country names and remove US-origin villains
+def standardize_origin(origin):
+    if pd.isna(origin):
+        return np.nan
+    origin = origin.strip()
+    if 'Hong Kong' in origin:
+        return 'China'
+    if 'England' in origin:
+        return 'United Kingdom'
+    return origin
+
+df['Standardized_Origin'] = df['Origin'].apply(standardize_origin)
+
+# Remove villains from USA and filter only UN countries
+usa_variants = ['USA', 'United States', 'Haddonfield, Illinois', '112 Ocean Avenue, Amityville, New York', 
+                'Los Angeles, USA', 'New York, USA', 'Chicago, USA']
+df = df[~df['Standardized_Origin'].isin(usa_variants)]
+df = df[df['Standardized_Origin'].isin(un_countries)]
+df = df[df['Standardized_Origin'].notna()]
+
+# Define regions and conflicts
 regions = {
-    'Islamic Countries': ['Iran', 'Iraq', 'Afghanistan', 'Syria', 'Pakistan', 'Saudi Arabia', 'Egypt', 'Turkey',
-                          'Libya', 'Islamic'],
+    'Islamic Countries': ['Iran', 'Iraq', 'Afghanistan', 'Syria', 'Pakistan', 'Saudi Arabia', 'Egypt', 'Turkey', 'Libya', 'Islamic'],
     'Communist Asia': ['China', 'North Korea'],
     'Russian/Ukrainian': ['Russia', 'USSR', 'Soviet Union', 'Ukraine', 'Stalingrad', 'Moscow', 'Kyiv']
 }
 
-# Define geopolitical conflicts data
+# Geopolitical conflicts data (year ranges for conflicts)
 geopolitical_conflicts = {
-    'Islamic Countries': [(1979, 1981), (1991, 1993), (2001, 2001), (2002, 2015)],  # Iran Hostage Crisis, gulf war, 9/11, Iraq and Afganistan Wars
-    'Communist Asia': [(2006, 2018), (2020, 2024)],  # North Korea Nuclear threat, China marked as greatest threat to the USA
-    'Russian/Ukrainian': [(1980, 1985), (2014, 2016), (2022, 2024)]  # Cold war tention, Ukraine Crisis, Russia-Ukraine Conflict
+    'Islamic Countries': [(1979, 1981), (1991, 1993), (2001, 2001), (2002, 2015)],  # Iran Hostage Crisis, Gulf War, 9/11, Iraq/Afghanistan wars
+    'Communist Asia': [(2006, 2018), (2020, 2024)],  # North Korea nuclear threat, China-US tensions
+    'Russian/Ukrainian': [(1980, 1985), (2014, 2016), (2022, 2024)]  # Cold War, Ukraine crisis
 }
 
-
-# Function to assign region and determine conflict status
-def assign_region_and_conflict(row):
-    origin = str(row['Origin']) if not pd.isna(row['Origin']) else ''
-    year = row['Year']
-
-    # Determine the region
+# Step 3: Helper function to determine if a country is in conflict during a specific year
+def is_in_conflict(origin, year):
     for region, countries in regions.items():
-        if any(country in origin for country in countries):
-            # Check if the year falls within any conflict period
-            for start, end in geopolitical_conflicts.get(region, []):
-                if start <= year <= (end if end != 'present' else 9999):  # Handle 'present' as ongoing
-                    return region, 1  # In conflict
-            return region, 0  # Not in conflict
+        if origin in countries:
+            for conflict_start, conflict_end in geopolitical_conflicts[region]:
+                if conflict_start <= year <= conflict_end:
+                    return 1  # In conflict
+    return 0  # Not in conflict
 
-    return 'Other', 0  # Not in conflict and not from a defined region
+df['In_Conflict'] = df.apply(lambda row: is_in_conflict(row['Standardized_Origin'], row['Year']), axis=1)
 
-
-# Apply the function to assign region and conflict status
-df['Region'], df['In_Conflict'] = zip(*df.apply(assign_region_and_conflict, axis=1))
-
-# Filter out 'Other' regions and villains from the USA
-df = df[df['Region'] != 'Other']
-
-# Step 3: Splitting Data for Training and Testing
-X = df[['Year', 'In_Conflict']]
+# Step 4: Feature engineering and splitting data
+X = df[['Year']]
 y = df['In_Conflict']
 
-# Train-test split (80% training, 20% testing)
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
+# Split data into training and testing sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-# Step 4: Training the Model with Random Forest
-model = RandomForestClassifier(random_state=42, n_estimators=100)
-model.fit(X_train, y_train)
+# Step 5: Use SMOTE to handle class imbalance
+smote = SMOTE(random_state=42)
+X_train_smote, y_train_smote = smote.fit_resample(X_train, y_train)
 
-# Step 5: Making Predictions for 2025
-new_data_2025 = pd.DataFrame({
-    'Year': [2025],
-    'In_Conflict': [1]  # Assuming ongoing conflicts
-})
+# Step 6: Train a Random Forest Classifier
+clf = RandomForestClassifier(random_state=42)
+clf.fit(X_train_smote, y_train_smote)
 
-# Predicting for 2025
-prediction_2025 = model.predict_proba(new_data_2025)[0][1] * 100  # Probability for conflict region
+# Step 7: Make predictions on the test set
+y_pred = clf.predict(X_test)
+y_pred_proba = clf.predict_proba(X_test)[:, 1]  # Get probabilities for the positive class
 
-print(
-    f"Predicted probability that the villain in 2025 will be from a region in conflict with the USA: {prediction_2025:.2f}%")
-
-# Step 6: Evaluating the Model on Test Data
-y_pred = model.predict(X_test)
+# Step 8: Evaluate the model
+conf_matrix = confusion_matrix(y_test, y_pred)
 accuracy = accuracy_score(y_test, y_pred)
+precision = precision_score(y_test, y_pred, zero_division=1)
+recall = recall_score(y_test, y_pred)
+f1 = f1_score(y_test, y_pred)
+roc_auc = roc_auc_score(y_test, y_pred_proba)
 
-# Update this part to avoid the warning
-labels = [0, 1]  # These are the possible labels for 'In_Conflict'
-conf_matrix = confusion_matrix(y_test, y_pred, labels=labels)
-class_report = classification_report(y_test, y_pred, labels=labels, zero_division=0)
+print("Confusion Matrix:\n", conf_matrix)
+print(f"Accuracy: {accuracy:.2f}")
+print(f"Precision: {precision:.2f}")
+print(f"Recall: {recall:.2f}")
+print(f"F1 Score: {f1:.2f}")
+print(f"ROC AUC Score: {roc_auc:.2f}")
 
-print(f"Test Accuracy: {accuracy}")
-print("Confusion Matrix:")
-print(conf_matrix)
-print("Classification Report:")
-print(class_report)
+# Step 9: Plot the ROC curve
+fpr, tpr, thresholds = roc_curve(y_test, y_pred_proba)
 
-# Step 7: Visualizing Yearly Probabilities
-yearly_probabilities = df.groupby('Year')['In_Conflict'].mean() * 100  # Convert to percentage
-
-plt.figure(figsize=(12, 6))
-plt.plot(yearly_probabilities.index, yearly_probabilities.values, marker='o', label='Historical Data')
-plt.scatter(2025, prediction_2025, color='red', label=f'2025 Prediction: {prediction_2025:.2f}%',
-            s=100)  # Add prediction for 2025
-
-plt.xlabel('Year')
-plt.ylabel('Probability of Villain from Conflict Region (%)')
-plt.title('Probability of Villain from Region in Conflict with USA (1977-2024)')
-plt.grid(True)
-plt.ylim(0, 100)  # Set the Y-axis from 0 to 100%
-plt.legend()
-
-# Save the plot to a file
-plt.savefig('output_prediction.png', bbox_inches='tight')
-
+plt.figure()
+plt.plot(fpr, tpr, color='blue', label=f'ROC curve (area = {roc_auc:.2f})')
+plt.plot([0, 1], [0, 1], color='red', linestyle='--')  # Random guessing line
+plt.xlim([0.0, 1.0])
+plt.ylim([0.0, 1.05])
+plt.xlabel('False Positive Rate')
+plt.ylabel('True Positive Rate')
+plt.title('Receiver Operating Characteristic (ROC) Curve')
+plt.legend(loc="lower right")
 plt.show()
+
+# Step 10: Predict for a future year (e.g., 2025)
+future_years = pd.DataFrame({'Year': [2025]})
+future_pred = clf.predict(future_years)
+
