@@ -70,19 +70,25 @@ geopolitical_conflicts = {
     'Russian/Ukrainian': [(1980, 1985), (2014, 2016), (2022, 2024)]  # Cold War, Ukraine crisis
 }
 
-# Step 3: Helper function to determine if a country is in conflict during a specific year
-def is_in_conflict(origin, year):
+# Step 3: Helper function to determine if a country is in conflict and calculate decay effect
+def is_in_conflict_and_decay(origin, year):
+    decay_factor = 0
+    in_conflict = 0
     for region, countries in regions.items():
         if origin in countries:
             for conflict_start, conflict_end in geopolitical_conflicts[region]:
                 if conflict_start <= year <= conflict_end:
-                    return 1  # In conflict
-    return 0  # Not in conflict
+                    in_conflict = 1  # In conflict
+                elif year > conflict_end:
+                    # Calculate decay effect for years after conflict
+                    years_after_conflict = year - conflict_end
+                    decay_factor += np.exp(-years_after_conflict)  # Exponential decay
+    return in_conflict, decay_factor
 
-df['In_Conflict'] = df.apply(lambda row: is_in_conflict(row['Standardized_Origin'], row['Year']), axis=1)
+df['In_Conflict'], df['Decay_Effect'] = zip(*df.apply(lambda row: is_in_conflict_and_decay(row['Standardized_Origin'], row['Year']), axis=1))
 
 # Step 4: Feature engineering and splitting data
-X = df[['Year']]
+X = df[['Year', 'Decay_Effect']]
 y = df['In_Conflict']
 
 # Split data into training and testing sets
@@ -129,7 +135,18 @@ plt.title('Receiver Operating Characteristic (ROC) Curve')
 plt.legend(loc="lower right")
 plt.show()
 
-# Step 10: Predict for a future year (e.g., 2025)
-future_years = pd.DataFrame({'Year': [2025]})
-future_pred = clf.predict(future_years)
+# Step 10: Predict for Sweden in 2025 when not in conflict
+# Create a DataFrame for 2025 with no conflict (Decay_Effect = 0) for Sweden
+df_sweden_not_in_conflict = pd.DataFrame({'Year': [2025], 'Decay_Effect': [0]})
 
+# Predict the probability of a villain being from Sweden in 2025 when not in conflict
+probability_not_in_conflict = clf.predict_proba(df_sweden_not_in_conflict)[:, 1]
+print(f"Probability of a villain being from Sweden in 2025 when not in conflict: {probability_not_in_conflict[0]:.4f}")
+
+# Step 11: Predict for Sweden in 2025 when in conflict
+# Create a DataFrame for 2025 and flag Sweden as being in conflict
+df_sweden_in_conflict = pd.DataFrame({'Year': [2025], 'Decay_Effect': [1]})  # Setting decay effect high for active conflict
+
+# Predict the probability of a villain being from Sweden in 2025 when in conflict
+probability_in_conflict = clf.predict_proba(df_sweden_in_conflict)[:, 1]
+print(f"Probability of a villain being from Sweden in 2025 when in conflict: {probability_in_conflict[0]:.4f}")
